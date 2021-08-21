@@ -12,6 +12,18 @@ hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'exist
 infected_hashes = []
 hashed_files = {}
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+# Update the hashes
 def update_hashes():
   if not os.path.isdir(hash_directory):
     os.mkdir(hash_directory)
@@ -21,11 +33,9 @@ def update_hashes():
   existing_hashes = sorted(existing_hashes)
 
   if len(existing_hashes) < 1:
-    print('* Downloading first hash file...')
+    print(f'{bcolors.OKGREEN}* Downloading first hash file...{bcolors.ENDC}')
     url = virusshare_uri+"00000.md5"
     r = requests.get(url)
-
-    print(f'Status Code: {r.status_code}')
 
     if r.status_code == 200:
       with open(hash_directory+'/hash_00000.md5', 'wb') as f:
@@ -35,7 +45,7 @@ def update_hashes():
   last_hash_file_number = int(last_hashfile.split("_")[1].split('.')[0])
   next_hash_file_number = last_hash_file_number + 1
 
-  print('Checking for new hashes...')
+  print(f'{bcolors.OKCYAN}Checking for new hashes...{bcolors.ENDC}')
 
   recent_hash = str(last_hash_file_number).zfill(5)
   url = virusshare_uri+recent_hash+".md5"
@@ -55,19 +65,19 @@ def update_hashes():
         f.write(r.content)
       print(f'Downloaded {next_hash}.')
     else:
-      print('Hashes up-to-date.')
+      print(f'{bcolors.OKGREEN}Hashes up-to-date.{bcolors.ENDC}')
       break
-         
-def compare_hash(hash):
+
+# Compare a hash         
+def compare_hash(hash,counter):
   match = False
   existing_hashes = os.listdir(hash_directory)
-
   for file in existing_hashes:
     f = open(hash_directory+'/'+file, "r")
     readfile = f.read()
     if hash in readfile:
       match = True
-      print(f'Found one: {hash}')
+      print(f"{bcolors.FAIL}Infected File: {hashed_files[hash]}{bcolors.ENDC}")
       infected_hashes.append(hash)
       f.close()
       continue
@@ -75,13 +85,17 @@ def compare_hash(hash):
       f.close()
 
   if not match:
-    print(f'{hash} Clean!')
+    print(f'({counter}/{len(hashed_files)} Scanned.', end='\r')
 
+# Loop through hashed files and start a process to check the hash
 def compare_hashes(hashed_files):
+  counter = 1
   for hash in hashed_files:
-    p = Process(target=compare_hash, args=(hash,))
+    p = Process(target=compare_hash, args=(hash,counter))
     p.start()
+    counter += 1
 
+# Recurse through the directory if it contains directories
 def recurse_and_hash(filename, file):
   if os.path.isfile(filename):
     hashed_file = hashlib.md5(open(filename,'rb').read()).hexdigest()
@@ -92,6 +106,7 @@ def recurse_and_hash(filename, file):
       child_filename = filename+'/'+child_file
       recurse_and_hash(child_filename, child_file)
 
+# Kick off the scan of the directory to get files and hash them
 def scan_directory(directory_to_scan):
   print(f'Scanning Directory: {directory_to_scan}...')
   files_to_hash = os.listdir(directory_to_scan)
@@ -106,7 +121,6 @@ def scan_directory(directory_to_scan):
 if __name__ == "__main__":
   
   try:
-    print(f'Starting with {cpu_count()} cores.')
     update_hashes()
 
     directory_to_scan = os.path.realpath('/home/jason/Documents')
@@ -115,7 +129,7 @@ if __name__ == "__main__":
     p1.start()
     p1.join()
     end = timer()
-    print(f'elapsed time: {end - start}')
+    print(f'Completed in {end - start} seconds.')
 
     print('Scan Complete.')
     if len(infected_hashes) > 0:
