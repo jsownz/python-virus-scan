@@ -81,14 +81,25 @@ def compare_hashes(hashed_files):
     p = Process(target=compare_hash, args=(hash,))
     p.start()
 
+def recurse_and_hash(filename, file):
+  if os.path.isfile(filename):
+    hashed_file = hashlib.md5(open(filename,'rb').read()).hexdigest()
+    hashed_files[hashed_file] = filename
+  else:
+    child_files = files_to_hash = os.listdir(filename)
+    for child_file in child_files:
+      child_filename = filename+'/'+child_file
+      recurse_and_hash(child_filename, child_file)
+
 def scan_directory(directory_to_scan):
   print(f'Scanning Directory: {directory_to_scan}...')
   files_to_hash = os.listdir(directory_to_scan)
 
   for file in files_to_hash:
     filename = directory_to_scan+'/'+file
-    hashed_file = hashlib.md5(open(filename,'rb').read()).hexdigest()
-    hashed_files[hashed_file] = filename
+    recurse_and_hash(filename, file)
+
+  print(f'Scanning {len(hashed_files)} files...')
   compare_hashes(hashed_files)
 
 if __name__ == "__main__":
