@@ -2,10 +2,14 @@ import requests
 import os
 import sys
 import hashlib
+from multiprocessing import Process
+from timeit import default_timer as timer
 
 virustotal_uri = "https://virusshare.com/hashfiles/VirusShare_"
 hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'existing_hashes')
 infected_hashes = []
+hashed_files = {}
+
 
 def update_hashes():
   if not os.path.isdir(hash_directory):
@@ -32,6 +36,14 @@ def update_hashes():
 
   print('Checking for new hashes...')
 
+  recent_hash = str(last_hash_file_number).zfill(5)
+  url = virustotal_uri+recent_hash+".md5"
+  r = requests.get(url)
+
+  if r.status_code == 200:
+    with open(hash_directory+'/hash_'+recent_hash+'.md5', 'wb') as f:
+      f.write(r.content)
+
   for i in range(next_hash_file_number,10000):
     next_hash = str(i).zfill(5)
     url = virustotal_uri+next_hash+".md5"
@@ -48,9 +60,10 @@ def update_hashes():
 def compare_hash(hash):
   match = False
   existing_hashes = os.listdir(hash_directory)
-  print(f'Checking hash {hash}')
 
   file_counter = 1
+  # ! This needs to be made more efficient
+  # Try to use chunk instead of line reading
   for file in existing_hashes:
     with open(hash_directory+'/'+file) as lines:
       for line in lines:
@@ -70,21 +83,18 @@ def compare_hash(hash):
     print(f'{hash} Clean!')
 
 def compare_hashes(hashed_files):
-  counter = 1
   for hash in hashed_files:
-    print(f'Hash {counter}/{len(hashed_files)}...')
-    compare_hash(hash)
-    counter += 1
+    p = Process(target=compare_hash, args=(hash))
+    p.start()
 
 def scan_directory(directory_to_scan):
   print(f'Scanning Directory: {directory_to_scan}...')
   files_to_hash = os.listdir(directory_to_scan)
-  hashed_files = []
 
   for file in files_to_hash:
     filename = directory_to_scan+'/'+file
     hashed_file = hashlib.md5(open(filename,'rb').read()).hexdigest()
-    hashed_files.append(hashed_file)
+    hashed_files[hashed_file] = filename
   compare_hashes(hashed_files)
 
 if __name__ == "__main__":
@@ -93,8 +103,12 @@ if __name__ == "__main__":
     update_hashes()
 
     directory_to_scan = os.path.realpath('/home/jason/Documents')
-
-    scan_directory(directory_to_scan)
+    start = timer()
+    p1 = Process(target=scan_directory, args=(directory_to_scan,))
+    p1.start()
+    p1.join()
+    end = timer()
+    print(f'elapsed time: {end - start}')
 
     print('Scan Complete.')
     if len(infected_hashes) > 0:
@@ -108,5 +122,5 @@ if __name__ == "__main__":
     if len(infected_hashes) > 0:
       print('Infections found:')
       for hash in infected_hashes:
-        print(f'Hash: {hash}')
+        print(hashed_files[hash])
     sys.exit(0)
