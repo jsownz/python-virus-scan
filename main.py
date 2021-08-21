@@ -1,15 +1,15 @@
+import multiprocessing
 import requests
 import os
 import sys
 import hashlib
-from multiprocessing import Process
+from multiprocessing import Process, cpu_count
 from timeit import default_timer as timer
 
 virustotal_uri = "https://virusshare.com/hashfiles/VirusShare_"
 hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'existing_hashes')
 infected_hashes = []
 hashed_files = {}
-
 
 def update_hashes():
   if not os.path.isdir(hash_directory):
@@ -56,35 +56,29 @@ def update_hashes():
     else:
       print('Hashes up-to-date.')
       break
-
+         
 def compare_hash(hash):
   match = False
   existing_hashes = os.listdir(hash_directory)
 
-  file_counter = 1
-  # ! This needs to be made more efficient
-  # Try to use chunk instead of line reading
   for file in existing_hashes:
-    with open(hash_directory+'/'+file) as lines:
-      for line in lines:
-        line = line.strip()
-        print(f'({round((file_counter/len(existing_hashes))*100)}%) {line}', end='\r')
-        if line == hash:
-          match = True
-          print(f'Found one: {hash}')
-          infected_hashes.append(hash)
-          break
-      else:
-        file_counter += 1
-        continue
-      break
+    f = open(hash_directory+'/'+file, "r")
+    readfile = f.read()
+    if hash in readfile:
+      match = True
+      print(f'Found one: {hash}')
+      infected_hashes.append(hash)
+      f.close()
+      continue
+    else:
+      f.close()
 
   if not match:
     print(f'{hash} Clean!')
 
 def compare_hashes(hashed_files):
   for hash in hashed_files:
-    p = Process(target=compare_hash, args=(hash))
+    p = Process(target=compare_hash, args=(hash,))
     p.start()
 
 def scan_directory(directory_to_scan):
@@ -100,6 +94,7 @@ def scan_directory(directory_to_scan):
 if __name__ == "__main__":
   
   try:
+    print(f'Starting with {cpu_count()} cores.')
     update_hashes()
 
     directory_to_scan = os.path.realpath('/home/jason/Documents')
