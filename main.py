@@ -5,8 +5,9 @@ import sys
 import hashlib
 from multiprocessing import Process, cpu_count
 from timeit import default_timer as timer
-
-virustotal_uri = "https://virusshare.com/hashfiles/VirusShare_"
+ 
+# Using VirusShare md5 hash database, thank you for your research: https://virusshare.com
+virusshare_uri = "https://virusshare.com/hashfiles/VirusShare_"
 hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'existing_hashes')
 infected_hashes = []
 hashed_files = {}
@@ -21,7 +22,7 @@ def update_hashes():
 
   if len(existing_hashes) < 1:
     print('* Downloading first hash file...')
-    url = virustotal_uri+"00000.md5"
+    url = virusshare_uri+"00000.md5"
     r = requests.get(url)
 
     print(f'Status Code: {r.status_code}')
@@ -37,7 +38,7 @@ def update_hashes():
   print('Checking for new hashes...')
 
   recent_hash = str(last_hash_file_number).zfill(5)
-  url = virustotal_uri+recent_hash+".md5"
+  url = virusshare_uri+recent_hash+".md5"
   r = requests.get(url)
 
   if r.status_code == 200:
@@ -46,7 +47,7 @@ def update_hashes():
 
   for i in range(next_hash_file_number,10000):
     next_hash = str(i).zfill(5)
-    url = virustotal_uri+next_hash+".md5"
+    url = virusshare_uri+next_hash+".md5"
     r = requests.get(url)
 
     if r.status_code == 200:
