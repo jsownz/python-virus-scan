@@ -1,16 +1,10 @@
-import multiprocessing
 import requests
 import os
 import sys
 import hashlib
-from multiprocessing import Process, cpu_count
+import argparse
+from multiprocessing import Process
 from timeit import default_timer as timer
- 
-# Using VirusShare md5 hash database, thank you for your research: https://virusshare.com
-virusshare_uri = "https://virusshare.com/hashfiles/VirusShare_"
-hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'existing_hashes')
-infected_hashes = []
-hashed_files = {}
 
 class bcolors:
     HEADER = '\033[95m'
@@ -22,6 +16,23 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+# set up args
+def get_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--directory", dest="directory_to_scan", help="Full path to scan")
+    options = parser.parse_args()
+    if not options.directory_to_scan:
+        # handle error
+        parser.error(f"{bcolors.FAIL}[-] Please specify a directory to scan, use --help for more info{bcolors.ENDC}")
+    return options
+ 
+# Using VirusShare md5 hash database, thank you for your research: https://virusshare.com
+virusshare_uri = "https://virusshare.com/hashfiles/VirusShare_"
+hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'existing_hashes')
+infected_hashes = []
+hashed_files = {}
+options = get_arguments()
 
 # Update the hashes
 def update_hashes():
@@ -85,7 +96,7 @@ def compare_hash(hash,counter):
       f.close()
 
   if not match:
-    print(f'({counter}/{len(hashed_files)} Scanned.', end='\r')
+    print(f'{counter}/{len(hashed_files)} Scanned.', end='\r')
 
 # Loop through hashed files and start a process to check the hash
 def compare_hashes(hashed_files):
@@ -123,9 +134,9 @@ if __name__ == "__main__":
   try:
     update_hashes()
 
-    directory_to_scan = os.path.realpath('/home/jason/Documents')
+    # directory_to_scan = os.path.realpath('/home/jason/Documents')
     start = timer()
-    p1 = Process(target=scan_directory, args=(directory_to_scan,))
+    p1 = Process(target=scan_directory, args=(options.directory_to_scan,))
     p1.start()
     p1.join()
     end = timer()
