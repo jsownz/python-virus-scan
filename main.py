@@ -31,7 +31,10 @@ def get_arguments():
 virusshare_uri = "https://virusshare.com/hashfiles/VirusShare_"
 hash_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),'existing_hashes')
 infected_hashes = []
+existing_hashes = []
 hashed_files = {}
+virus_defs = []
+scanned_count = 0
 options = get_arguments()
 
 # Update the hashes
@@ -80,29 +83,25 @@ def update_hashes():
       break
 
 # Compare a hash         
-def compare_hash(hash,counter):
-  match = False
+def compare_hash(hash, counter):
   existing_hashes = os.listdir(hash_directory)
   for file in existing_hashes:
     f = open(hash_directory+'/'+file, "r")
     readfile = f.read()
     if hash in readfile:
-      match = True
       print(f"{bcolors.FAIL}Infected File: {hashed_files[hash]}{bcolors.ENDC}")
       infected_hashes.append(hash)
       f.close()
       continue
     else:
       f.close()
-
-  if not match:
-    print(f'{counter}/{len(hashed_files)} Scanned.', end='\r')
+  print(f'{counter}/{len(hashed_files)} Scanned.', end='\r')
 
 # Loop through hashed files and start a process to check the hash
-def compare_hashes(hashed_files):
+def compare_hashes():
   counter = 1
   for hash in hashed_files:
-    p = Process(target=compare_hash, args=(hash,counter))
+    p = Process(target=compare_hash, args=(hash, counter,))
     p.start()
     counter += 1
 
@@ -112,7 +111,7 @@ def recurse_and_hash(filename, file):
     hashed_file = hashlib.md5(open(filename,'rb').read()).hexdigest()
     hashed_files[hashed_file] = filename
   else:
-    child_files = files_to_hash = os.listdir(filename)
+    child_files = os.listdir(filename)
     for child_file in child_files:
       child_filename = filename+'/'+child_file
       recurse_and_hash(child_filename, child_file)
@@ -127,12 +126,21 @@ def scan_directory(directory_to_scan):
     recurse_and_hash(filename, file)
 
   print(f'Scanning {len(hashed_files)} files...')
-  compare_hashes(hashed_files)
+  compare_hashes()
+
+def load_virus_defs():
+  print(f"{bcolors.FAIL}Loading Virus Hashes...{bcolors.ENDC}")
+  for hash_file in existing_hashes:
+    f = open(hash_directory+'/'+hash_file, "r")
+    readfile = f.read()
+    virus_defs.append(readfile)
+  print(f"{bcolors.OKGREEN}Virus hashes loaded.{bcolors.ENDC}")
 
 if __name__ == "__main__":
   
   try:
     update_hashes()
+    load_virus_defs()
 
     # directory_to_scan = os.path.realpath('/home/jason/Documents')
     start = timer()
